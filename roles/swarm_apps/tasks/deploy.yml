@@ -1,0 +1,130 @@
+---
+
+- name: Copy the stacks
+  ansible.builtin.copy:
+    src: "{{ env }}/swarm_apps/{{ stack.name }}/{{ stack.stack_file }}"
+    dest: "/{{ swarm_folder }}/{{ stack.name }}.yml"
+  changed_when: false
+
+# docker config
+- name: Create config (from a file on the control machine)
+  community.docker.docker_config:
+    name: "{{ config.name }}"
+    rolling_versions: true
+    data: "{{ lookup('file', env + '/swarm_apps/' + stack.name + '/' + config.file) | b64encode }}"
+    data_is_b64: true
+    state: present
+  loop: "{{ stack.configs }}"
+  loop_control:
+    loop_var: config
+    label: 
+      - "{{ config.name }}"
+  register: configs_output
+
+- name: Update container config definition
+  ansible.builtin.lineinfile:
+    path: "{{ swarm_folder }}/{{ stack.name }}.yml" 
+    regexp: '(.*){{ config_output.config.name }}($)'
+    line: '\1{{ config_output.config_name }}\2'
+    backrefs: true
+  changed_when: false
+  loop: "{{ configs_output.results }}"
+  loop_control:
+    loop_var: config_output
+    label: 
+      - "{{ config_output.config.name }}"
+      - "{{ config_output.config_name }}"
+
+- name: Update external config
+  ansible.builtin.lineinfile:
+    path: "{{ swarm_folder }}/{{ stack.name }}.yml" 
+    regexp: '(.*){{ config_output.config.name }}(.*)'
+    line: '\1{{ config_output.config_name }}\2'
+    backrefs: true
+  changed_when: false
+  loop: "{{ configs_output.results }}"
+  loop_control:
+    loop_var: config_output
+    label: 
+      - "{{ config_output.config.name }}"
+      - "{{ config_output.config_name }}"
+
+# secrets
+#
+- name: Create secrets
+  community.docker.docker_secret:
+    name: "{{ secret.name }}"
+    data: "{{ secret.content | b64encode }}"
+    data_is_b64: true
+    state: present
+    rolling_versions: true
+  loop: "{{ stack.secrets }}"
+  loop_control:
+    loop_var: secret
+    label: 
+      - "{{ secret.name }}"
+  register: secrets_output
+
+- name: Update container secrets definitions
+  ansible.builtin.lineinfile:
+    path: "{{ swarm_folder }}/{{ stack.name }}.yml" 
+    regexp: '(.*){{ secret_output.secret.name }}($)'
+    line: '\1{{ secret_output.secret_name }}\2'
+    backrefs: true
+  changed_when: false
+  loop: "{{ secrets_output.results }}"
+  loop_control:
+    loop_var: secret_output
+    label: 
+      - "{{ secret_output.secret.name }}"
+      - "{{ secret_output.secret_name }}"
+
+- name: Update container secrets definitions
+  ansible.builtin.lineinfile:
+    path: "{{ swarm_folder }}/{{ stack.name }}.yml" 
+    regexp: '(.*)/run/secrets/{{ secret_output.secret.name }}'
+    line: '\1/run/secrets/{{ secret_output.secret_name }}'
+    backrefs: true
+  changed_when: false
+  loop: "{{ secrets_output.results }}"
+  loop_control:
+    loop_var: secret_output
+    label: 
+      - "{{ secret_output.secret.name }}"
+      - "{{ secret_output.secret_name }}"
+
+- name: Update external secrets
+  ansible.builtin.lineinfile:
+    path: "{{ swarm_folder }}/{{ stack.name }}.yml" 
+    regexp: '(.*){{ secret_output.secret.name }}(.*)'
+    line: '\1{{ secret_output.secret_name }}\2'
+    backrefs: true
+  changed_when: false
+  loop: "{{ secrets_output.results }}"
+  loop_control:
+    loop_var: secret_output
+    label: 
+      - "{{ secret_output.secret.name }}"
+      - "{{ secret_output.secret_name }}"
+
+
+# networks
+#
+- name: Create stack networks
+  community.docker.docker_network:
+    name: "{{ network.name }}"
+    scope: "swarm"
+    driver: "{{ network.driver | default('overlay') }}"
+  loop: "{{ stack.networks }}"
+  loop_control:
+    loop_var: network
+    label:
+      - "{{ network.name }}"
+
+- name: Deploy stack from a compose file
+  community.docker.docker_stack:
+    state: present
+    name: "{{ stack.name }}" 
+    compose:
+      - "{{ swarm_folder }}/{{ stack.name }}.yml"
+

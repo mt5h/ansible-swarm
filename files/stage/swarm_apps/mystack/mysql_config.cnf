@@ -1,0 +1,4 @@
+[mysqld]
+max_allowed_packet=60M
+max_connections=200
+default-authentication-plugin=mysql_native_password

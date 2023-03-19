@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis
+  db:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_password
+    configs:
+      - source: mysql_config
+        target: /etc/mysql/conf.d/mysql.cnf
+    secrets:
+       - mysql_password
+    networks:
+      - mysql_network
+
+
+configs:
+  mysql_config:
+    external: true
+      
+secrets:
+   mysql_password:
+     external: true
+
+networks:
+  mysql_network:
+    external: true

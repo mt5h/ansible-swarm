@@ -1,0 +1,6 @@
+---
+
+- hosts: swarm
+  become: true
+  roles:
+    - role: 'swarm_apps'

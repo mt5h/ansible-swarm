@@ -1,0 +1,12 @@
+#swarm_folder: /opt/swarm_stacks
+#swarm_apps:
+#  - name: mystack
+#    stack_file: stack.yml
+#    configs:
+#      - name: mysql_config
+#        file: mysql_config.cnf
+#    secrets:
+#      - name: mysql_password
+#        content: "password123"
+#    networks:
+#      - name: mysql_network

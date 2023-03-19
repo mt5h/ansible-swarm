@@ -1,0 +1,17 @@
+---
+
+- name: Ensure swarm folder exists
+  file:
+    path: "{{ swarm_folder }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0775
+
+- name: Deploy stack from a compose file
+  include: deploy.yml
+  loop: "{{ swarm_apps }}"
+  loop_control:
+    loop_var: stack
+
+
